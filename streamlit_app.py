@@ -4,17 +4,16 @@ from efficientnet_pytorch import EfficientNet
 from torchvision import transforms
 from PIL import Image
 import os
+import time
 
-# Debugging awal
 
 model_dir = "model"
 
 
-# Judul Aplikasi
 st.title("🔍 Prediksi Kelas Gaharu")
 st.write("Unggah satu atau lebih gambar untuk diprediksi kelasnya.")
 
-# Path model yang ingin kamu pakai
+#
 model_path = os.path.join(model_dir, "efficientnet_model_best_deploy_100.pth")
 
 @st.cache_resource
@@ -41,7 +40,6 @@ def load_model():
         model.load_state_dict(checkpoint["model_state_dict"])
         model.eval()
 
-   
         return model, class_names
 
     except Exception as e:
@@ -49,10 +47,9 @@ def load_model():
         return None, None
 
 
-# Load model
 model, class_names = load_model()
 
-# Transformasi untuk gambar input
+
 transform_test = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -65,19 +62,39 @@ def predict_image(image):
         outputs = model(image)
         probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
         predicted_idx = torch.argmax(probabilities).item()
-
     return class_names[predicted_idx], max(probabilities).item()
 
 
-# Upload & prediksi
 uploaded_files = st.file_uploader("📤 Unggah satu atau beberapa gambar", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True)
 
 if uploaded_files and model:
+    total_time = 0
+    st.subheader("🖼️ Hasil Prediksi")
     for uploaded_file in uploaded_files:
         image = Image.open(uploaded_file).convert("RGB")
         st.image(image, caption=f"📷 {uploaded_file.name}", use_container_width=True)
 
+        
+        start_time = time.time()
+
+       
         pred_class, confidence = predict_image(image)
-        st.success(f"✅ Prediksi: **{pred_class}** \n🎯 Confidence: {confidence:.2f}")
+
+       
+        end_time = time.time()
+        runtime = end_time - start_time
+        total_time += runtime
+
+        
+        st.success(f"✅ Prediksi: **{pred_class}**")
+        st.write(f"🎯 Confidence: **{confidence:.2f}**")
+        st.info(f"⏱️ Waktu pemrosesan gambar ini: **{runtime:.2f} detik**")
+
+    avg_time = total_time / len(uploaded_files)
+    st.subheader("📊 Ringkasan Waktu")
+    st.write(f"📦 Total gambar diproses: **{len(uploaded_files)}**")
+    st.write(f"🕒 Total waktu pemrosesan: **{total_time:.2f} detik**")
+    st.write(f"⚡ Rata-rata waktu per gambar: **{avg_time:.2f} detik**")
+
 elif uploaded_files and not model:
     st.error("❌ Model belum berhasil dimuat, tidak bisa memproses gambar.")
